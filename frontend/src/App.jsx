@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import RoomPanel from "./components/RoomPanel"
+import RoomPanel from "./Components/RoomPanel"
 import "./App.css"
 
 function App() {
