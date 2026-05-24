@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/hospital")
-@CrossOrigin(origins = {"http://localhost:5173", "https://hospital-management-system-three-ochre.vercel.app/"})
+@CrossOrigin(origins = {"http://localhost:5173", "https://hospital-management-system-three-ochre.vercel.app"})
 
 public class HospitalController {
 
