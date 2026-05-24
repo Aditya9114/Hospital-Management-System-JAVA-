@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 
-const API = "http://localhost:8080/api/hospital"
+const API = "https://hospital-management-system-4bmu.onrender.com/api/hospital"
 
 function getInitials(name) {
     if (!name) return "?"

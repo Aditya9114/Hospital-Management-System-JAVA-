@@ -126,7 +126,7 @@ git push -u origin main
 
 In `frontend/src/Components/RoomPanel.jsx`, change line 3 from:
 ```js
-const API = "http://localhost:8080/api/hospital"
+const API = "https://hospital-management-system-4bmu.onrender.com/api/hospital"
 ```
 To your Render backend URL:
 ```js
