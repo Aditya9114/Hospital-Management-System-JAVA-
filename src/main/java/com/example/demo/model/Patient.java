@@ -14,6 +14,8 @@ public class Patient {
     private int age;
     private String disease;
     private String roomType;
+    private Long doctorId;
+    private String admittedDate;
 
     public Patient() {
         this.patientId = "-1";

@@ -1,9 +1,14 @@
 package com.example.demo.service;
 
+import com.example.demo.model.DischargeRecord;
 import com.example.demo.model.Patient;
+import com.example.demo.repository.DischargeRecordRepository;
 import com.example.demo.repository.PatientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -11,6 +16,9 @@ public class HospitalService {
 
     @Autowired
     private PatientRepository patientRepository;
+
+    @Autowired
+    private DischargeRecordRepository dischargeRecordRepository;
 
     private int emergencyBeds = 2;
     private int generalBeds = 5;
@@ -42,6 +50,7 @@ public class HospitalService {
         int total = getBedCount(type);
         if (occupied >= total) return "No Empty Bed Available";
         patient.setRoomType(type);
+        patient.setAdmittedDate(LocalDate.now().toString());
         patientRepository.save(patient);
         return "Patient assigned successfully";
     }
@@ -52,9 +61,48 @@ public class HospitalService {
 
     public String removePatient(String patientId) {
         if (patientRepository.existsById(patientId)) {
+            Patient patient = patientRepository.findById(patientId).get();
+
+            // Calculate bill
+            String admittedStr = patient.getAdmittedDate();
+            LocalDate admittedDate = (admittedStr != null) ? LocalDate.parse(admittedStr) : LocalDate.now();
+            LocalDate dischargedDate = LocalDate.now();
+            int totalDays = (int) ChronoUnit.DAYS.between(admittedDate, dischargedDate);
+            if (totalDays < 1) totalDays = 1;
+
+            double ratePerDay = getRatePerDay(patient.getRoomType());
+            double billAmount = ratePerDay * totalDays;
+
+            // Save discharge record
+            DischargeRecord record = new DischargeRecord();
+            record.setPatientId(patient.getPatientId());
+            record.setPatientName(patient.getPatientName());
+            record.setRoomType(patient.getRoomType());
+            record.setAdmittedDate(admittedDate.toString());
+            record.setDischargedDate(dischargedDate.toString());
+            record.setTotalDays(totalDays);
+            record.setBillAmount(billAmount);
+            dischargeRecordRepository.save(record);
+
             patientRepository.deleteById(patientId);
             return "Patient discharged successfully";
         }
         return "Patient not found";
     }
-}
+
+    private double getRatePerDay(String roomType) {
+        if (roomType == null) return 1000;
+        if (roomType.equalsIgnoreCase("emergency")) return 5000;
+        if (roomType.equalsIgnoreCase("general")) return 2000;
+        if (roomType.equalsIgnoreCase("general2")) return 1000;
+        return 1000;
+    }
+
+    public List<DischargeRecord> getDischargeHistory() {
+        return dischargeRecordRepository.findAll();
+    }
+
+    public List<DischargeRecord> getBill(String patientId) {
+        return dischargeRecordRepository.findByPatientId(patientId);
+    }
+}

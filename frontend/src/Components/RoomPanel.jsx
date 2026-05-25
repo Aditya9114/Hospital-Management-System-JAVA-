@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 
-const API = "https://hospital-management-system-4bmu.onrender.com/api/hospital"
+const API = `${import.meta.env.VITE_API_URL}/api/hospital`
+const DOCTOR_API = `${import.meta.env.VITE_API_URL}/api/doctors`
 
 function getInitials(name) {
     if (!name) return "?"
@@ -11,14 +12,16 @@ export default function RoomPanel({ roomType }) {
     const [bedCount, setBedCount] = useState(null)
     const [newBedCount, setNewBedCount] = useState("")
     const [patients, setPatients] = useState([])
+    const [doctors, setDoctors] = useState([])
     const [emptyBed, setEmptyBed] = useState(null)
     const [msg, setMsg] = useState("")
     const [msgType, setMsgType] = useState("ok")
-    const [form, setForm] = useState({ patientId: "", patientName: "", age: "", disease: "" })
+    const [form, setForm] = useState({ patientId: "", patientName: "", age: "", disease: "", doctorId: "" })
 
     useEffect(() => {
         fetchBeds()
         fetchPatients()
+        fetchDoctors()
         setMsg("")
         setEmptyBed(null)
     }, [roomType])
@@ -33,6 +36,12 @@ export default function RoomPanel({ roomType }) {
         const res = await fetch(`${API}/${roomType}/patients`)
         const data = await res.json()
         setPatients(data)
+    }
+
+    const fetchDoctors = async () => {
+        const res = await fetch(DOCTOR_API)
+        const data = await res.json()
+        setDoctors(data)
     }
 
     const showMsg = (text, type = "ok") => {
@@ -69,14 +78,17 @@ export default function RoomPanel({ roomType }) {
             showMsg("Please fill in all fields", "warn")
             return
         }
+        const body = { ...form, age: parseInt(form.age) }
+        if (form.doctorId) body.doctorId = parseInt(form.doctorId)
+        else delete body.doctorId
         const res = await fetch(`${API}/${roomType}/assign`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...form, age: parseInt(form.age) })
+            body: JSON.stringify(body)
         })
         const data = await res.json()
         showMsg(data.message)
-        setForm({ patientId: "", patientName: "", age: "", disease: "" })
+        setForm({ patientId: "", patientName: "", age: "", disease: "", doctorId: "" })
         fetchPatients()
         fetchBeds()
     }
@@ -89,6 +101,12 @@ export default function RoomPanel({ roomType }) {
         showMsg(data.message)
         fetchPatients()
         fetchBeds()
+    }
+
+    const getDoctorName = (doctorId) => {
+        if (!doctorId) return null
+        const doc = doctors.find(d => d.id === doctorId)
+        return doc ? doc.name : null
     }
 
     const occupied = patients.length
@@ -153,6 +171,15 @@ export default function RoomPanel({ roomType }) {
                         value={form.disease}
                         onChange={e => setForm({ ...form, disease: e.target.value })}
                     />
+                    <select
+                        value={form.doctorId}
+                        onChange={e => setForm({ ...form, doctorId: e.target.value })}
+                    >
+                        <option value="">Select Doctor (optional)</option>
+                        {doctors.map(d => (
+                            <option key={d.id} value={d.id}>{d.name} — {d.specialization}</option>
+                        ))}
+                    </select>
                 </div>
                 <button className="btn btn-primary" onClick={handleAssign}>Assign to bed</button>
             </div>
@@ -168,13 +195,16 @@ export default function RoomPanel({ roomType }) {
                                 <div className="patient-avatar">{getInitials(p.patientName)}</div>
                                 <div className="patient-info">
                                     <p className="patient-name">{p.patientName}</p>
-                                    <p className="patient-meta">Age {p.age}</p>
+                                    <p className="patient-meta">
+                                        Age {p.age}
+                                        {getDoctorName(p.doctorId) && ` · Dr. ${getDoctorName(p.doctorId)}`}
+                                    </p>
                                 </div>
                                 <span className="disease-tag">{p.disease}</span>
                                 <span className="patient-id">{p.patientId}</span>
-                                <button 
-                                    className="btn btn-ghost" 
-                                    style={{ padding: "4px 8px", fontSize: "12px", marginLeft: "10px" }} 
+                                <button
+                                    className="btn btn-ghost"
+                                    style={{ padding: "4px 8px", fontSize: "12px", marginLeft: "10px" }}
                                     onClick={() => handleDischarge(p.patientId)}
                                 >
                                     Discharge

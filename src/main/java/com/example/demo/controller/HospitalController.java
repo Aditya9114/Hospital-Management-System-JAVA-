@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.model.DischargeRecord;
 import com.example.demo.model.Patient;
 import com.example.demo.service.HospitalService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,4 +57,14 @@ public class HospitalController {
         String result = hospitalService.removePatient(id);
         return ResponseEntity.ok(Map.of("message", result));
     }
-}
+
+    @GetMapping("/discharge-history")
+    public ResponseEntity<List<DischargeRecord>> getDischargeHistory() {
+        return ResponseEntity.ok(hospitalService.getDischargeHistory());
+    }
+
+    @GetMapping("/bill/{patientId}")
+    public ResponseEntity<List<DischargeRecord>> getBill(@PathVariable String patientId) {
+        return ResponseEntity.ok(hospitalService.getBill(patientId));
+    }
+}
