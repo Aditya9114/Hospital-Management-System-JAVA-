@@ -1,103 +1,221 @@
 import { useState, useEffect } from "react"
+import { Search, UserPlus, Stethoscope, Mail, Phone, Trash2, X } from "lucide-react"
 
 const API = `${import.meta.env.VITE_API_URL}/api/doctors`
 
-function getInitials(name) {
-    if (!name) return "?"
-    return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
+function SkeletonTableRows() {
+    return (
+        <>
+            {[1, 2, 3, 4].map(i => (
+                <tr key={i}>
+                    <td><div className="skeleton skeleton-text" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '60%' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '90%' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '70%' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '40px', borderRadius: '50%' }}></div></td>
+                </tr>
+            ))}
+        </>
+    )
+}
+
+function AddDoctorModal({ isOpen, onClose, fetchDoctors }) {
+    const [form, setForm] = useState({ name: "", specialization: "", contactInfo: "", email: "" })
+    const [msg, setMsg] = useState("")
+
+    if (!isOpen) return null
+
+    const handleAdd = async () => {
+        if (!form.name || !form.specialization) {
+            setMsg("Name and specialization are required")
+            return
+        }
+        try {
+            const res = await fetch(API, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(form)
+            })
+            if (res.ok) {
+                setForm({ name: "", specialization: "", contactInfo: "", email: "" })
+                setMsg("")
+                fetchDoctors()
+                onClose()
+            } else {
+                const data = await res.json()
+                setMsg(data.message || "Error adding doctor")
+            }
+        } catch (e) {
+            setMsg("Failed to add doctor")
+        }
+    }
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2 className="modal-title">Add New Doctor</h2>
+                    <button className="modal-close" onClick={onClose}>
+                        <X size={20} />
+                    </button>
+                </div>
+                {msg && <p className="msg warn" style={{ marginBottom: '1rem' }}>{msg}</p>}
+                
+                <div className="form-grid">
+                    <input
+                        type="text"
+                        placeholder="Dr. Full Name"
+                        value={form.name}
+                        onChange={e => setForm({ ...form, name: e.target.value })}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Specialization (e.g. Cardiology)"
+                        value={form.specialization}
+                        onChange={e => setForm({ ...form, specialization: e.target.value })}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Phone / Contact Info"
+                        value={form.contactInfo}
+                        onChange={e => setForm({ ...form, contactInfo: e.target.value })}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Email Address"
+                        value={form.email}
+                        onChange={e => setForm({ ...form, email: e.target.value })}
+                    />
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+                    <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+                    <button className="btn btn-primary" onClick={handleAdd}>
+                        <UserPlus size={18} />
+                        Add Doctor
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 export default function DoctorsPage() {
-    const [doctors, setDoctors] = useState([])
-    const [form, setForm] = useState({ name: "", specialization: "", phone: "" })
-    const [msg, setMsg] = useState("")
-    const [msgType, setMsgType] = useState("ok")
+    const [doctors, setDoctors] = useState(null)
+    const [search, setSearch] = useState("")
+    const [isModalOpen, setIsModalOpen] = useState(false)
 
     useEffect(() => {
         fetchDoctors()
     }, [])
 
     const fetchDoctors = async () => {
-        const res = await fetch(API)
-        const data = await res.json()
-        setDoctors(data)
-    }
-
-    const showMsg = (text, type = "ok") => {
-        setMsg(text)
-        setMsgType(type)
-        setTimeout(() => setMsg(""), 4000)
-    }
-
-    const handleAdd = async () => {
-        if (!form.name || !form.specialization || !form.phone) {
-            showMsg("Please fill in all fields", "warn")
-            return
+        try {
+            const res = await fetch(API)
+            const data = await res.json()
+            setDoctors(data)
+        } catch (e) {
+            setDoctors([])
         }
-        const res = await fetch(API, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form)
-        })
-        await res.json()
-        showMsg("Doctor added successfully")
-        setForm({ name: "", specialization: "", phone: "" })
-        fetchDoctors()
     }
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Remove this doctor?")) return
+        try {
+            await fetch(`${API}/${id}`, { method: "DELETE" })
+            fetchDoctors()
+        } catch (e) {
+            console.error("Failed to delete")
+        }
+    }
+
+    const filtered = (doctors || []).filter(d => 
+        d.name.toLowerCase().includes(search.toLowerCase()) || 
+        d.specialization.toLowerCase().includes(search.toLowerCase())
+    )
 
     return (
-        <div>
-            {/* Add doctor form */}
-            <div className="card">
-                <p className="card-title">Add Doctor</p>
-                <div className="form-grid">
-                    <input
-                        type="text"
-                        placeholder="Doctor Name"
-                        value={form.name}
-                        onChange={e => setForm({ ...form, name: e.target.value })}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Specialization"
-                        value={form.specialization}
-                        onChange={e => setForm({ ...form, specialization: e.target.value })}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Phone Number"
-                        value={form.phone}
-                        onChange={e => setForm({ ...form, phone: e.target.value })}
-                    />
+        <div className="card delay-100">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <p className="card-title" style={{ marginBottom: 0 }}>
+                    <Stethoscope size={16} />
+                    Medical Staff Directory
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                            type="text"
+                            placeholder="Search doctors..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{ paddingLeft: '2.25rem', width: '250px' }}
+                        />
+                    </div>
+                    <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+                        <UserPlus size={16} />
+                        Add Doctor
+                    </button>
                 </div>
-                <button className="btn btn-primary" onClick={handleAdd}>Add Doctor</button>
-                {msg && <p className={`msg ${msgType === "warn" ? "warn" : ""}`}>{msg}</p>}
             </div>
 
-            {/* Doctor list */}
-            <div className="card">
-                <p className="card-title">All Doctors — {doctors.length} registered</p>
-                {doctors.length === 0
-                    ? <div className="empty-state">No doctors registered yet</div>
-                    : <div className="patient-list">
-                        {doctors.map((d) => (
-                            <div className="patient-item" key={d.id}>
-                                <div className="patient-avatar" style={{ background: "var(--green-dim)", color: "var(--green)", borderColor: "rgba(62,207,142,0.2)" }}>
-                                    {getInitials(d.name)}
-                                </div>
-                                <div className="patient-info">
-                                    <p className="patient-name">{d.name}</p>
-                                    <p className="patient-meta">{d.specialization}</p>
-                                </div>
-                                <span className="disease-tag" style={{ background: "var(--blue-dim)", color: "var(--blue)", borderColor: "rgba(77,158,255,0.15)" }}>
-                                    {d.specialization}
-                                </span>
-                                <span className="patient-id">{d.phone}</span>
-                            </div>
-                        ))}
-                    </div>
-                }
+            <div className="data-table-wrapper">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Doctor Name</th>
+                            <th>Specialization</th>
+                            <th>Email</th>
+                            <th>Contact</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {doctors === null ? (
+                            <SkeletonTableRows />
+                        ) : filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan="5" style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                                    No doctors found matching your search.
+                                </td>
+                            </tr>
+                        ) : (
+                            filtered.map(d => (
+                                <tr key={d.id}>
+                                    <td style={{ fontWeight: 500 }}>{d.name}</td>
+                                    <td>
+                                        <span className="badge blue">{d.specialization}</span>
+                                    </td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Mail size={14} style={{ color: 'var(--text-muted)' }} />
+                                            {d.email || "—"}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Phone size={14} style={{ color: 'var(--text-muted)' }} />
+                                            {d.contactInfo || "—"}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button 
+                                            className="btn btn-ghost" 
+                                            style={{ padding: '0.4rem', color: 'var(--danger)', borderColor: 'var(--danger-bg)' }}
+                                            onClick={() => handleDelete(d.id)}
+                                            title="Remove Doctor"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
+
+            <AddDoctorModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} fetchDoctors={fetchDoctors} />
         </div>
     )
 }

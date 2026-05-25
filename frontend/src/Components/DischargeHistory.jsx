@@ -1,9 +1,26 @@
 import { useState, useEffect } from "react"
+import { Search, FileText, Calendar, Clock, DollarSign } from "lucide-react"
 
-const API = `${import.meta.env.VITE_API_URL}/api/hospital`
+const API = `${import.meta.env.VITE_API_URL}/api/discharge`
+
+function SkeletonTableRows() {
+    return (
+        <>
+            {[1, 2, 3, 4, 5].map(i => (
+                <tr key={i}>
+                    <td><div className="skeleton skeleton-text" style={{ width: '80px' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '120px' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '100px' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '150px' }}></div></td>
+                    <td><div className="skeleton skeleton-text" style={{ width: '80px' }}></div></td>
+                </tr>
+            ))}
+        </>
+    )
+}
 
 export default function DischargeHistory() {
-    const [records, setRecords] = useState([])
+    const [records, setRecords] = useState(null)
     const [search, setSearch] = useState("")
 
     useEffect(() => {
@@ -11,81 +28,95 @@ export default function DischargeHistory() {
     }, [])
 
     const fetchRecords = async () => {
-        const res = await fetch(`${API}/discharge-history`)
-        const data = await res.json()
-        setRecords(data)
+        try {
+            const res = await fetch(API)
+            const data = await res.json()
+            setRecords(data)
+        } catch (e) {
+            setRecords([])
+        }
     }
 
-    const filtered = records.filter(r =>
-        r.patientName?.toLowerCase().includes(search.toLowerCase()) ||
-        r.patientId?.toLowerCase().includes(search.toLowerCase())
+    const filtered = (records || []).filter(r => 
+        r.patientName.toLowerCase().includes(search.toLowerCase()) || 
+        r.patientId.toLowerCase().includes(search.toLowerCase())
     )
 
+    const formatDate = (dateStr) => {
+        if (!dateStr) return "—"
+        return new Date(dateStr).toLocaleDateString(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric'
+        })
+    }
+
     return (
-        <div>
-            {/* Stats */}
-            <div className="grid2">
-                <div className="card">
-                    <p className="card-title">Total Discharges</p>
-                    <div className="stat-number">{records.length}</div>
-                    <p className="stat-label">patients discharged</p>
-                </div>
-                <div className="card">
-                    <p className="card-title">Total Revenue</p>
-                    <div className="stat-number">
-                        ₹{records.reduce((sum, r) => sum + r.billAmount, 0).toLocaleString("en-IN")}
-                    </div>
-                    <p className="stat-label">from all discharges</p>
+        <div className="card delay-100">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <p className="card-title" style={{ marginBottom: 0 }}>
+                    <FileText size={16} />
+                    Discharge & Billing Records
+                </p>
+                <div style={{ position: 'relative' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                        type="text"
+                        placeholder="Search patient name or ID..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        style={{ paddingLeft: '2.25rem', width: '300px' }}
+                    />
                 </div>
             </div>
 
-            {/* Search + Table */}
-            <div className="card">
-                <p className="card-title">Discharge Records</p>
-                <div className="input-row" style={{ marginTop: 0, marginBottom: 16 }}>
-                    <input
-                        type="text"
-                        placeholder="Search by name or ID..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{ width: 280 }}
-                    />
-                </div>
-                {filtered.length === 0
-                    ? <div className="empty-state">No discharge records found</div>
-                    : <div style={{ overflowX: "auto" }}>
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Patient ID</th>
-                                    <th>Patient Name</th>
-                                    <th>Room Type</th>
-                                    <th>Admitted</th>
-                                    <th>Discharged</th>
-                                    <th>Days</th>
-                                    <th>Bill (₹)</th>
+            <div className="data-table-wrapper">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Patient ID</th>
+                            <th>Patient Name</th>
+                            <th>Date of Discharge</th>
+                            <th>Diagnosis / Notes</th>
+                            <th>Total Billed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {records === null ? (
+                            <SkeletonTableRows />
+                        ) : filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan="5" style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                                    No discharge records found.
+                                </td>
+                            </tr>
+                        ) : (
+                            filtered.map(r => (
+                                <tr key={r.id}>
+                                    <td>
+                                        <span className="patient-id">{r.patientId}</span>
+                                    </td>
+                                    <td style={{ fontWeight: 500 }}>{r.patientName}</td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                                            {formatDate(r.dischargeDate)}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="badge red" style={{ textTransform: 'none' }}>
+                                            {r.diagnosis || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600, color: 'var(--success)' }}>
+                                            <DollarSign size={14} />
+                                            {r.totalBill ? r.totalBill.toFixed(2) : "0.00"}
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.map((r) => (
-                                    <tr key={r.id}>
-                                        <td><span className="patient-id">{r.patientId}</span></td>
-                                        <td>{r.patientName}</td>
-                                        <td>
-                                            <span className={`badge ${r.roomType === "emergency" ? "red" : "blue"}`}>
-                                                {r.roomType}
-                                            </span>
-                                        </td>
-                                        <td>{r.admittedDate}</td>
-                                        <td>{r.dischargedDate}</td>
-                                        <td>{r.totalDays}</td>
-                                        <td style={{ fontWeight: 500 }}>₹{r.billAmount.toLocaleString("en-IN")}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     )
